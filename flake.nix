@@ -145,7 +145,8 @@
           ] ++ rustBuildInputs;
         };
 
-      in {
+      in
+      {
         devShells.default = pkgs.mkShell {
           name = "dioxus-android-shell";
 

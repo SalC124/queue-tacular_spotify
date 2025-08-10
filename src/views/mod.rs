@@ -11,8 +11,8 @@
 mod home;
 pub use home::Home;
 
-mod blog;
-pub use blog::Blog;
+mod callback;
+pub use callback::Callback;
 
-mod navbar;
-pub use navbar::Navbar;
+// mod navbar;
+// pub use navbar::Navbar;
