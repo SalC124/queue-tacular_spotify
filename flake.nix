@@ -1,5 +1,5 @@
 {
-  description = "Android + Rust + Dioxus environment (base simplified config)";
+  description = "Rust + Dioxus environment (base simplified config)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -16,33 +16,8 @@
           inherit system overlays;
           config = {
             allowUnfree = true;
-            android_sdk.accept_license = true;
           };
         };
-
-        java = pkgs.jdk17;
-        buildToolsVersion = "34.0.0";
-        ndkVersion = "25.2.9519653";
-
-        android = pkgs.androidenv.composeAndroidPackages {
-          cmdLineToolsVersion = "8.0";
-          toolsVersion = "26.1.1";
-          platformToolsVersion = "34.0.4";
-          buildToolsVersions = [ buildToolsVersion ];
-          platformVersions = [ "30" "31" "32" "33" "34" ];
-          includeSources = false;
-          includeSystemImages = false;
-          abiVersions = [ "armeabi-v7a" "arm64-v8a" ];
-          includeNDK = true;
-          ndkVersions = [ ndkVersion ];
-          includeExtras = [ "extras;google;gcm" ];
-          systemImageTypes = [ "google_apis_playstore" ];
-          includeEmulator = false;
-          useGoogleAPIs = false;
-          useGoogleTVAddOns = false;
-        };
-
-        androidSdkRoot = "${android.androidsdk}/libexec/android-sdk";
 
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" "clippy" "rustfmt" ];
@@ -94,65 +69,13 @@
           pkgs.darwin.apple_sdk.frameworks.Cocoa
         ]);
 
-        # FHS environment to run Android tools
-        fhsEnv = pkgs.buildFHSUserEnv {
-          name = "dioxus-android-fhs";
-          targetPkgs = pkgs: with pkgs; [
-            rustToolchain
-            dioxusCli
-            android.androidsdk
-            openjdk
-            # Libraries needed for Android tools
-            stdenv.cc.cc.lib
-            zlib
-            libcxx
-            libGL
-            libglvnd
-            fontconfig
-            freetype
-            xorg.libX11
-            xorg.libXext
-            xorg.libXi
-            xorg.libXrender
-            xorg.libXtst
-            xorg.libXxf86vm
-            # Additional libraries that might be needed
-            ncurses5
-            libuuid
-            expat
-            libxcrypt-legacy
-            alsa-lib
-            at-spi2-atk
-            at-spi2-core
-            atk
-            cairo
-            cups
-            curl
-            dbus
-            gtk3
-            gdk-pixbuf
-            glib
-            mesa
-            nspr
-            nss
-            pango
-            systemd
-            udev
-          ] ++ rustBuildInputs;
-          multiPkgs = pkgs: with pkgs; [
-            stdenv.cc.cc.lib
-            zlib
-          ] ++ rustBuildInputs;
-        };
 
       in
       {
         devShells.default = pkgs.mkShell {
-          name = "dioxus-android-shell";
+          name = "dioxus-web-shell";
 
           buildInputs = [
-            java
-            android.androidsdk
             rustToolchain
             dioxusCli
             pkgs.gradle
@@ -161,19 +84,8 @@
             pkgs.bundletool
           ] ++ rustBuildInputs;
 
-          env = {
-            JAVA_HOME = "${java}";
-            ANDROID_SDK_ROOT = androidSdkRoot;
-            ANDROID_HOME = androidSdkRoot;
-            GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdkRoot}/build-tools/${buildToolsVersion}/aapt2";
-          };
+          env = { };
 
-          shellHook = ''
-            export PATH=$PATH:${androidSdkRoot}/platform-tools
-            adb start-server
-            adb devices
-            echo "[✔] Dioxus + Android dev shell is ready."
-          '';
         };
       });
 }

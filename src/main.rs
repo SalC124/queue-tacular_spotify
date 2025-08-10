@@ -15,7 +15,8 @@ enum Route {
 }
 
 #[derive(Clone, Debug)]
-pub struct StatesLol {
+pub struct AppStates {
+    access_code: Signal<Option<String>>,
     access_token: Signal<Option<String>>,
 }
 
@@ -28,7 +29,8 @@ fn main() {
 
 #[component]
 fn App() -> Element {
-    let mut states = use_context_provider(|| StatesLol {
+    let mut states = use_context_provider(|| AppStates {
+        access_code: Signal::new(None),
         access_token: Signal::new(None),
     });
     rsx! {

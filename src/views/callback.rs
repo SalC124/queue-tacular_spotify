@@ -1,30 +1,44 @@
 use crate::Route;
 use dioxus::prelude::*;
 
-use crate::StatesLol;
+use crate::AppStates;
 
 const BLOG_CSS: Asset = asset!("/assets/styling/blog.css");
 
 #[component]
 pub fn Callback(code: String) -> Element {
-    let mut states_lol = use_context::<StatesLol>();
+    let mut app_states = use_context::<AppStates>();
 
     use_effect(move || {
-        let code_clone = code.clone();
-        states_lol.access_token.set(Some(code_clone));
+        if code != "" {
+            let code_clone = code.clone();
+            app_states.access_code.set(Some(code_clone));
+        }
     });
+
+    let code = app_states.access_code.read().clone();
 
     rsx! {
         document::Link { rel: "stylesheet", href: BLOG_CSS }
 
         div {
             id: "callback",
-            h3 { "you're logged in!" }
-            p { "{states_lol.access_token.read():?}" }
+            match code.clone() {
+                Some(v) => rsx! {
+                    p { "code got!" }
+                    p { "{v}" }
+                },
+                None => rsx! {
+                    p { "you stink!" }
+                },
+            }
 
             Link {
                 to: Route::Home {},
-                "go home"
+                match code.clone() {
+                    Some(_) => "finish auth and go home",
+                    None => "retry auth and go home",
+                }
             }
         }
     }
