@@ -78,10 +78,6 @@
           buildInputs = [
             rustToolchain
             dioxusCli
-            pkgs.gradle
-            pkgs.flutter
-            pkgs.android-studio
-            pkgs.bundletool
           ] ++ rustBuildInputs;
 
           env = { };

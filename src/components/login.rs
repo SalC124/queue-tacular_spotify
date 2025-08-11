@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::env;
 use url::Url;
 
-use crate::AppStates;
+use crate::{AppStates};
 
 const CLIENT_ID: &str = "432051cfd6a446d9b3adfeea29af2748";
 
@@ -42,8 +42,6 @@ pub fn Login() -> Element {
         Some(code) => match access_token {
             None => {
                 spawn(async move {
-                    let client = reqwest::Client::new();
-
                     // Create form data
                     let mut form_data = HashMap::new();
                     form_data.insert("grant_type", "authorization_code");
@@ -55,7 +53,7 @@ pub fn Login() -> Element {
                     let encoded_credentials = base64::encode(credentials);
                     let auth_header = format!("Basic {}", encoded_credentials);
 
-                    let response = client
+                    let response = app_states.reqwest_client.read()
                         .post("https://accounts.spotify.com/api/token")
                         .header("Content-Type", "application/x-www-form-urlencoded")
                         .header("Authorization", auth_header)
