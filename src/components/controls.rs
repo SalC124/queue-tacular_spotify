@@ -5,23 +5,29 @@ use crate::{AppStates, Song};
 #[component]
 pub fn Controls() -> Element {
     let token = use_context::<AppStates>().access_token.read().clone();
-    let mut status_code = use_signal(|| String::from("0"));
-    let mut song_deets = use_signal(|| Song {
-        index: 420,
-        id: "poop".to_string(),
-        uri: "poop".to_string(),
-        name: "poop".to_string(),
-        artists: vec!["poop".to_string(); 3],
-        time_ms: 420,
-        is_playing: false,
-    });
+    let mut pause_code = use_signal(|| String::from("0"));
+    let mut song_deets: Signal<Option<Song>> = use_signal(|| None);
+    let mut play_code = use_signal(|| String::from("0"));
 
     let pause = move |_: FormEvent| async move {
-        status_code.set(pause_playback().await);
+        pause_code.set(pause_playback().await);
     };
 
     let get_playback = move |_: FormEvent| async move {
-        song_deets.set(get_current_playback().await);
+        let deets = get_current_playback().await;
+
+        match deets {
+            None => {
+                song_deets.set(None);
+            }
+            Some(ligma) => {
+                song_deets.set(Some(ligma));
+            }
+        }
+    };
+
+    let play = move |_: FormEvent| async move {
+        play_code.set(play(false, 0).await);
     };
 
     match token {
@@ -29,11 +35,15 @@ pub fn Controls() -> Element {
         Some(_) => rsx! {
             form {
                 onsubmit: pause,
-                button { "pause {status_code}" }
+                button { "pause {pause_code}" }
             }
             form {
                 onsubmit: get_playback,
                 button { "get playback" }
+            }
+            form {
+                onsubmit: play,
+                button { "play {play_code}" }
             }
             p { "{song_deets.read():?}" }
         },
@@ -64,22 +74,14 @@ pub async fn pause_playback() -> String {
     }
 }
 
-pub async fn get_current_playback() -> Song {
+pub async fn get_current_playback() -> Option<Song> {
     let app_states = use_context::<AppStates>();
 
     let access_token = app_states.access_token.read().clone();
     let song_index = app_states.song_index.read().clone();
 
     match access_token {
-        None => Song {
-            index: 420,
-            id: "poop".to_string(),
-            uri: "poop".to_string(),
-            name: "poop".to_string(),
-            artists: vec!["poop".to_string(); 3],
-            time_ms: 420,
-            is_playing: false,
-        },
+        None => None,
         Some(token) => {
             let deets = app_states
                 .reqwest_client
@@ -92,11 +94,22 @@ pub async fn get_current_playback() -> Song {
                 .json::<serde_json::Value>()
                 .await
                 .unwrap();
-            Song {
+
+            //let ip = &ip[1..ip.len() - 1];
+            Some(Song {
                 index: song_index,
-                id: deets["item"]["id"].to_string(),
-                uri: deets["item"]["uri"].to_string(),
-                name: deets["item"]["name"].to_string(),
+                id: {
+                    let id = deets["item"]["id"].to_string();
+                    id[1..id.len() - 1].to_string()
+                },
+                uri: {
+                    let uri = deets["item"]["uri"].to_string();
+                    uri[1..uri.len() - 1].to_string()
+                },
+                name: {
+                    let name = deets["item"]["name"].to_string();
+                    name[1..name.len() - 1].to_string()
+                },
                 artists: deets["item"]["artists"]
                     .as_array()
                     .unwrap_or(&vec![])
@@ -106,15 +119,70 @@ pub async fn get_current_playback() -> Song {
                     .collect::<Vec<String>>(),
                 time_ms: deets["progress_ms"].as_i64().unwrap_or(0),
                 is_playing: deets["is_playing"].as_bool().unwrap_or(false),
-            }
+            })
         }
     }
 }
 
-// pub async play()
-//
 //PUT:
 //     {
 //     "uris":  ["spotify:track:3ZikLQCnH3SIswlGENBcKe","spotify:track:6I6Zjwlx4LSE1iojm94za1"], // this array can be used for the better-queue
 //     "position_ms": 6000
 // }
+
+pub async fn play(absolute_time: bool, time_ms: i64) -> String {
+    let app_states = use_context::<AppStates>();
+
+    let access_token = app_states.access_token.read().clone();
+
+    match access_token {
+        None => "no token lol".to_string(),
+        Some(token) => {
+            let current_song_info = get_current_playback().await;
+
+            match current_song_info {
+                None => "idk bro".to_string(),
+                Some(info) => {
+                    let mut song_ms = info.time_ms;
+
+                    match absolute_time {
+                        true => {
+                            song_ms = time_ms;
+                        },
+                        false => {
+                            if time_ms == 0 {
+                                // dont include `position_ms` (or ig you can ¯\_(ツ)_/¯)
+                            } else {
+                                song_ms += time_ms;
+                            }
+                        },
+                    }
+                    let uri = info.uri;
+
+                    let body = serde_json::json!({
+                        "uris": [uri],
+                        "position_ms": song_ms
+                    });
+
+                    let status_code = app_states
+                        .reqwest_client
+                        .read()
+                        .put("https://api.spotify.com/v1/me/player/play")
+                        .header("Authorization", format!("Bearer {}", token))
+                        .json(&body)
+                        .send()
+                        .await
+                        .unwrap() // TODO
+                        .status()
+                        .as_str()
+                        .to_string();
+                    status_code
+                }
+            }
+        }
+    }
+}
+
+pub async fn toggle_playback() {
+
+}
