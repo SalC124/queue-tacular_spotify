@@ -8,6 +8,7 @@ pub fn Controls() -> Element {
     let mut pause_code = use_signal(|| String::from("0"));
     let mut song_deets: Signal<Option<Song>> = use_signal(|| None);
     let mut play_code = use_signal(|| String::from("0"));
+    let mut toggle_code = use_signal(|| String::from("0"));
 
     let pause = move |_: FormEvent| async move {
         pause_code.set(pause_playback().await);
@@ -29,6 +30,9 @@ pub fn Controls() -> Element {
     let play = move |_: FormEvent| async move {
         play_code.set(play(false, 0).await);
     };
+    let toggle = move |_: FormEvent| async move {
+        toggle_code.set(toggle_playback().await);
+    };
 
     match token {
         None => rsx! {},
@@ -44,6 +48,10 @@ pub fn Controls() -> Element {
             form {
                 onsubmit: play,
                 button { "play {play_code}" }
+            }
+            form {
+                onsubmit: toggle,
+                button { "toggle {toggle_code}" }
             }
             p { "{song_deets.read():?}" }
         },
@@ -65,7 +73,7 @@ pub async fn pause_playback() -> String {
                 .header("Authorization", format!("Bearer {}", token))
                 .send()
                 .await
-                .unwrap() // TODO
+                .unwrap()
                 .status()
                 .as_str()
                 .to_string();
@@ -148,14 +156,14 @@ pub async fn play(absolute_time: bool, time_ms: i64) -> String {
                     match absolute_time {
                         true => {
                             song_ms = time_ms;
-                        },
+                        }
                         false => {
                             if time_ms == 0 {
                                 // dont include `position_ms` (or ig you can ¯\_(ツ)_/¯)
                             } else {
                                 song_ms += time_ms;
                             }
-                        },
+                        }
                     }
                     let uri = info.uri;
 
@@ -164,25 +172,47 @@ pub async fn play(absolute_time: bool, time_ms: i64) -> String {
                         "position_ms": song_ms
                     });
 
-                    let status_code = app_states
-                        .reqwest_client
-                        .read()
-                        .put("https://api.spotify.com/v1/me/player/play")
-                        .header("Authorization", format!("Bearer {}", token))
-                        .json(&body)
-                        .send()
-                        .await
-                        .unwrap() // TODO
-                        .status()
-                        .as_str()
-                        .to_string();
-                    status_code
+                    put_play(token, body).await
                 }
             }
         }
     }
 }
 
-pub async fn toggle_playback() {
+async fn put_play(token: String, body: serde_json::Value) -> String {
+    let app_states = use_context::<AppStates>();
 
+    let status_code = app_states
+        .reqwest_client
+        .read()
+        .put("https://api.spotify.com/v1/me/player/play")
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .status()
+        .as_str()
+        .to_string();
+    status_code
+}
+
+pub async fn toggle_playback() -> String {
+    let token = use_context::<AppStates>().access_token.read().clone();
+    match token {
+        None => "no token".to_string(),
+        Some(token) => {
+            match get_current_playback().await {
+                None => "bruh".to_string(),
+                Some(song_deets) => {
+                    match song_deets.is_playing {
+                        false => {
+                            put_play(token, serde_json::json!({ /* lol no */ })).await
+                        }
+                        true => pause_playback().await,
+                    }
+                }
+            }
+        }
+    }
 }

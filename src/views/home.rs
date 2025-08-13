@@ -1,11 +1,19 @@
-use crate::components::{Controls, Login};
+use crate::{
+    components::{Controls, Login, SongDisplay},
+    AppStates,
+};
 use dioxus::prelude::*;
 
-/// The Home page component that will be rendered when the current route is `[Route::Home]`
 #[component]
 pub fn Home() -> Element {
-    rsx! {
-        Login {}
-        Controls {}
+    let access_token = use_context::<AppStates>().access_token.read().clone();
+    match access_token {
+        None => rsx! {
+            Login {}
+        },
+        Some(_) => rsx! {
+            SongDisplay {}
+            Controls {}
+        },
     }
 }
