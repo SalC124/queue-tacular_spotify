@@ -33,6 +33,14 @@ pub struct Song {
     artists: Vec<String>,
     time_ms: i64,
     is_playing: bool,
+    images: Images,
+}
+
+#[derive(Clone, Debug)]
+pub struct Images {
+    small: String,
+    med: String,
+    large: String,
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");

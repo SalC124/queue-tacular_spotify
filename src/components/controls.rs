@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::{AppStates, Song};
+use crate::{AppStates, Images, Song};
 
 #[component]
 pub fn Controls() -> Element {
@@ -127,6 +127,55 @@ pub async fn get_current_playback() -> Option<Song> {
                     .collect::<Vec<String>>(),
                 time_ms: deets["progress_ms"].as_i64().unwrap_or(0),
                 is_playing: deets["is_playing"].as_bool().unwrap_or(false),
+                images: {
+                    let image_list: Vec<serde_json::Value> = deets["item"]["album"]["images"]
+                        .as_array()
+                        .unwrap_or(&vec![])
+                        .to_vec();
+
+                    let mut small_image = "".to_string();
+                    let mut medium_image = "".to_string();
+                    let mut large_image = "".to_string();
+
+                    for i in image_list {
+                        let url = i["url"].to_string();
+                        let url = url[1..url.len() - 1].to_string();
+
+                        match i["height"].as_i64() {
+                            Some(640) => large_image = url.clone(),
+                            Some(300) => medium_image = url.clone(),
+                            Some(64) => small_image = url.clone(),
+                            _ => {}
+                        }
+                        match i["width"].as_i64() {
+                            Some(640) => large_image = url.clone(),
+                            Some(300) => medium_image = url.clone(),
+                            Some(64) => small_image = url.clone(),
+                            _ => {}
+                        }
+                    }
+
+                    if small_image == "" {
+                        small_image = "https://i.scdn.co/image/ab67616d000048512fd8f63fe08b94881bebe5f8".to_string();
+                    }
+                    if medium_image == "" {
+                        medium_image = "https://i.scdn.co/image/ab67616d00001e022fd8f63fe08b94881bebe5f8".to_string();
+                    }
+                    if large_image == "" {
+                        large_image = "https://i.scdn.co/image/ab67616d0000b2732fd8f63fe08b94881bebe5f8".to_string();
+                    }
+
+                    // .iter()
+                    // .find(|img| img["height"].as_i64() == Some(300))
+                    // .and_then(|img| img["url"].as_str())
+                    // .unwrap_or("")
+                    // .to_string();
+                    Images {
+                        small: small_image,
+                        med: medium_image,
+                        large: large_image,
+                    }
+                },
             })
         }
     }
