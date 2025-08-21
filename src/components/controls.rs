@@ -83,7 +83,7 @@ pub async fn pause_playback() -> String {
 }
 
 pub async fn get_current_playback() -> Option<Song> {
-    let app_states = use_context::<AppStates>();
+    let mut app_states = use_context::<AppStates>();
 
     let access_token = app_states.access_token.read().clone();
     let song_index = app_states.song_index.read().clone();
@@ -104,7 +104,7 @@ pub async fn get_current_playback() -> Option<Song> {
                 .unwrap();
 
             //let ip = &ip[1..ip.len() - 1];
-            Some(Song {
+            let sawng = Some(Song {
                 index: song_index,
                 id: {
                     let id = deets["item"]["id"].to_string();
@@ -156,13 +156,19 @@ pub async fn get_current_playback() -> Option<Song> {
                     }
 
                     if small_image == "" {
-                        small_image = "https://i.scdn.co/image/ab67616d000048512fd8f63fe08b94881bebe5f8".to_string();
+                        small_image =
+                            "https://i.scdn.co/image/ab67616d000048512fd8f63fe08b94881bebe5f8"
+                                .to_string();
                     }
                     if medium_image == "" {
-                        medium_image = "https://i.scdn.co/image/ab67616d00001e022fd8f63fe08b94881bebe5f8".to_string();
+                        medium_image =
+                            "https://i.scdn.co/image/ab67616d00001e022fd8f63fe08b94881bebe5f8"
+                                .to_string();
                     }
                     if large_image == "" {
-                        large_image = "https://i.scdn.co/image/ab67616d0000b2732fd8f63fe08b94881bebe5f8".to_string();
+                        large_image =
+                            "https://i.scdn.co/image/ab67616d0000b2732fd8f63fe08b94881bebe5f8"
+                                .to_string();
                     }
 
                     // .iter()
@@ -176,7 +182,21 @@ pub async fn get_current_playback() -> Option<Song> {
                         large: large_image,
                     }
                 },
-            })
+            });
+            if let Some(ref song) = sawng {
+                let index = app_states.song_index.read().clone() as usize;
+                let mut song_vec = app_states.song_vector.write();
+
+                if index < song_vec.len() {
+                    song_vec[index] = song.clone();
+                } else {
+                    song_vec.push(song.clone());
+                }
+                // app_states
+                //     .song_vector
+                //     .insert(app_states.song_index.read().clone() as usize, song.clone());
+            }
+            sawng
         }
     }
 }

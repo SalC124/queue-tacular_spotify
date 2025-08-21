@@ -9,21 +9,20 @@ const BLOG_CSS: Asset = asset!("/assets/styling/blog.css");
 pub fn Callback(code: String) -> Element {
     let mut app_states = use_context::<AppStates>();
 
-    use_effect(move || {
-        if code != "" {
-            let code_clone = code.clone();
-            app_states.access_code.set(Some(code_clone));
+    use_effect(use_reactive!(|code| {
+        if !code.is_empty() {
+            app_states.access_code.set(Some(code.clone()));
         }
-    });
+    }));
 
-    let code = app_states.access_code.read().clone();
+    let stored_code = app_states.access_code.read().clone();
 
     rsx! {
         document::Link { rel: "stylesheet", href: BLOG_CSS }
 
         div {
             id: "callback",
-            match code.clone() {
+            match stored_code.clone() {
                 Some(v) => rsx! {
                     p { "code got!" }
                     p { "{v}" }
@@ -32,10 +31,9 @@ pub fn Callback(code: String) -> Element {
                     p { "you stink!" }
                 },
             }
-
             Link {
                 to: Route::Home {},
-                match code.clone() {
+                match stored_code.clone() {
                     Some(_) => "finish auth and go home",
                     None => "retry auth and go home",
                 }

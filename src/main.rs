@@ -9,10 +9,10 @@ mod views;
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
-        #[route("/")]
-        Home {},
-        #[route("/callback?:code")]
-        Callback { code: String },
+    #[route("/")]
+    Home {},
+    #[route("/callback?:code")]
+    Callback { code: String },
 }
 
 #[derive(Clone, Debug)]

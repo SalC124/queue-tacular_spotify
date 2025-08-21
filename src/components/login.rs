@@ -11,15 +11,11 @@ const CLIENT_ID: &str = "432051cfd6a446d9b3adfeea29af2748";
 #[component]
 pub fn Login() -> Element {
     let mut app_states = use_context::<AppStates>();
-
     let port = env!("PORT");
     let client_secret = env!("CLIENT_SECRET");
-
     let redirect_uri = format!("http://127.0.0.1:{}/callback", port);
-
-    let scope =
-        "user-read-private user-read-email user-modify-playback-state user-read-playback-state";
-
+    let scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state";
+    
     let mut auth_url = Url::parse("https://accounts.spotify.com/authorize").unwrap();
     auth_url
         .query_pairs_mut()
@@ -30,56 +26,66 @@ pub fn Login() -> Element {
 
     let access_code = app_states.access_code.read().clone();
     let access_token = app_states.access_token.read().clone();
+    
+    // Use use_effect to handle the token exchange
+    use_effect(use_reactive!(|access_code, access_token| {
+        if let (Some(code), None) = (access_code.as_ref(), access_token.as_ref()) {
+            let code = code.clone();
+            let redirect_uri = redirect_uri.clone();
+            let client_secret = client_secret.to_string();
+            let mut app_states = app_states.clone();
+            
+            spawn(async move {
+                // Create form data
+                let mut form_data = HashMap::new();
+                form_data.insert("grant_type", "authorization_code");
+                form_data.insert("code", &code);
+                form_data.insert("redirect_uri", &redirect_uri);
+                
+                // Create basic auth header
+                let credentials = format!("{}:{}", CLIENT_ID, client_secret);
+                let encoded_credentials = base64::encode(credentials);
+                let auth_header = format!("Basic {}", encoded_credentials);
+                
+                let response = app_states.reqwest_client.read()
+                    .post("https://accounts.spotify.com/api/token")
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .header("Authorization", auth_header)
+                    .form(&form_data)
+                    .send()
+                    .await
+                    .unwrap() // TODO
+                    .json::<serde_json::Value>()
+                    .await
+                    .unwrap(); // TODO
+                    
+                let token = response["access_token"].clone().to_string();
+                let token = &token[1..token.len() - 1];
+                app_states.access_token.set(Some(token.to_string()));
+            });
+        }
+    }));
 
     match access_code {
         None => {
-            return rsx! {
+            rsx! {
                 h2 { "log in "
                     a { href: auth_url.as_str(), "here" }
                 }
             }
         }
-        Some(code) => match access_token {
+        Some(_) => match access_token {
             None => {
-                spawn(async move {
-                    // Create form data
-                    let mut form_data = HashMap::new();
-                    form_data.insert("grant_type", "authorization_code");
-                    form_data.insert("code", &code);
-                    form_data.insert("redirect_uri", &redirect_uri);
-
-                    // Create basic auth header
-                    let credentials = format!("{}:{}", CLIENT_ID, client_secret);
-                    let encoded_credentials = base64::encode(credentials);
-                    let auth_header = format!("Basic {}", encoded_credentials);
-
-                    let response = app_states.reqwest_client.read()
-                        .post("https://accounts.spotify.com/api/token")
-                        .header("Content-Type", "application/x-www-form-urlencoded")
-                        .header("Authorization", auth_header)
-                        .form(&form_data)
-                        .send()
-                        .await
-                        .unwrap() // TODO
-                        .json::<serde_json::Value>()
-                        .await
-                        .unwrap(); // TODO
-
-                    let token = response["access_token"].clone().to_string();
-                    let token = &token[1..token.len() - 1];
-
-                    app_states.access_token.set(Some(token.to_string()));
-                });
-                return rsx! {
+                rsx! {
                     h2 { "you still need to get your token" }
-                };
+                }
             }
             Some(access_token) => {
-                return rsx! {
+                rsx! {
                     h2 { "youre logged in! :D" }
                     p { "{access_token}" }
-                };
+                }
             }
-        },
-    };
+        }
+    }
 }
