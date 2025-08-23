@@ -14,17 +14,26 @@ pub fn SongDisplay() -> Element {
         Ordering::Greater => {
             let song_index = app_states.song_index.read().clone();
             let current_song = &song_vec[song_index as usize];
+
             return rsx! {
-                p { "{app_states.song_index.read().clone()}" }
-                p { "{song_vec:?}" }
-                img {
-                    src: "{current_song.images.small}"
-                }
-                img {
-                    src: "{current_song.images.med}"
-                }
-                img {
-                    src: "{current_song.images.large}"
+                div { id: "queue",
+                    for song_item in song_vec.clone() {
+                        div {
+                            key: "{song_item.index}",
+                            style: r#"
+                                display: inline-block;
+                                "#,
+                            img { src: "{song_item.images.small}" }
+                            p {
+
+                                style: if song_index == song_item.index {
+                                    r#"
+                                        color: red;
+                                    "#
+                                },
+                                "{song_item.index}" }
+                        }
+                    }
                 }
             };
         }

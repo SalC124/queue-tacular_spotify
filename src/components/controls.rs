@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use serde_json::Value;
 
 use crate::{AppStates, Images, Song};
 
@@ -33,6 +34,9 @@ pub fn Controls() -> Element {
     let toggle = move |_: FormEvent| async move {
         toggle_code.set(toggle_playback().await);
     };
+    let get_queue = move |_: FormEvent| async move {
+        get_queue().await;
+    };
 
     match token {
         None => rsx! {},
@@ -53,7 +57,10 @@ pub fn Controls() -> Element {
                 onsubmit: toggle,
                 button { "toggle {toggle_code}" }
             }
-            p { "{song_deets.read():?}" }
+            form {
+                onsubmit: get_queue,
+                button { "get queue" }
+            }
         },
     }
 }
@@ -99,11 +106,10 @@ pub async fn get_current_playback() -> Option<Song> {
                 .send()
                 .await
                 .unwrap()
-                .json::<serde_json::Value>()
+                .json::<Value>()
                 .await
                 .unwrap();
 
-            //let ip = &ip[1..ip.len() - 1];
             let sawng = Some(Song {
                 index: song_index,
                 id: {
@@ -128,7 +134,7 @@ pub async fn get_current_playback() -> Option<Song> {
                 time_ms: deets["progress_ms"].as_i64().unwrap_or(0),
                 is_playing: deets["is_playing"].as_bool().unwrap_or(false),
                 images: {
-                    let image_list: Vec<serde_json::Value> = deets["item"]["album"]["images"]
+                    let image_list: Vec<Value> = deets["item"]["album"]["images"]
                         .as_array()
                         .unwrap_or(&vec![])
                         .to_vec();
@@ -248,7 +254,7 @@ pub async fn play(absolute_time: bool, time_ms: i64) -> String {
     }
 }
 
-async fn put_play(token: String, body: serde_json::Value) -> String {
+async fn put_play(token: String, body: Value) -> String {
     let app_states = use_context::<AppStates>();
 
     let status_code = app_states
@@ -282,6 +288,124 @@ pub async fn toggle_playback() -> String {
                     }
                 }
             }
+        }
+    }
+}
+
+pub async fn get_queue() -> () {
+    let mut app_states = use_context::<AppStates>();
+
+    let access_token = app_states.access_token.read().clone();
+    let mut song_vec = app_states.song_vector.write();
+
+    match access_token {
+        None => (),
+        Some(token) => {
+            let queue_array: Value = app_states
+                .reqwest_client
+                .read()
+                .get("https://api.spotify.com/v1/me/player/queue")
+                .header("Authorization", format!("Bearer {}", token))
+                .send()
+                .await
+                .unwrap()
+                .json::<Value>()
+                .await
+                .unwrap();
+
+            let queue_array: Vec<Value> =
+                queue_array["queue"].as_array().unwrap_or(&vec![]).to_vec();
+
+            let index_len = song_vec.len() as i32;
+
+            for (i, item) in queue_array.iter().enumerate() {
+                let song_item = Song {
+                    index: index_len + i as i32,
+                    id: {
+                        let id = item["id"].to_string();
+                        id[1..id.len() - 1].to_string()
+                    },
+                    uri: {
+                        let uri = item["uri"].to_string();
+                        uri[1..uri.len() - 1].to_string()
+                    },
+                    name: {
+                        let name = item["name"].to_string();
+                        name[1..name.len() - 1].to_string()
+                    },
+                    artists: item["artists"]
+                        .as_array()
+                        .unwrap_or(&vec![])
+                        .iter()
+                        .filter_map(|artist| artist["name"].as_str())
+                        .map(|name| name.to_string())
+                        .collect::<Vec<String>>(),
+                    time_ms: 0,
+                    is_playing: false,
+                    images: {
+                        let image_list: Vec<Value> = item["album"]["images"]
+                            .as_array()
+                            .unwrap_or(&vec![])
+                            .to_vec();
+
+                        let mut small_image = "".to_string();
+                        let mut medium_image = "".to_string();
+                        let mut large_image = "".to_string();
+
+                        for i in image_list {
+                            let url = i["url"].to_string();
+                            let url = url[1..url.len() - 1].to_string();
+
+                            match i["height"].as_i64() {
+                                Some(640) => large_image = url.clone(),
+                                Some(300) => medium_image = url.clone(),
+                                Some(64) => small_image = url.clone(),
+                                _ => {}
+                            }
+                            match i["width"].as_i64() {
+                                Some(640) => large_image = url.clone(),
+                                Some(300) => medium_image = url.clone(),
+                                Some(64) => small_image = url.clone(),
+                                _ => {}
+                            }
+                        }
+
+                        if small_image == "" {
+                            small_image =
+                                "https://i.scdn.co/image/ab67616d000048512fd8f63fe08b94881bebe5f8"
+                                    .to_string();
+                        }
+                        if medium_image == "" {
+                            medium_image =
+                                "https://i.scdn.co/image/ab67616d00001e022fd8f63fe08b94881bebe5f8"
+                                    .to_string();
+                        }
+                        if large_image == "" {
+                            large_image =
+                                "https://i.scdn.co/image/ab67616d0000b2732fd8f63fe08b94881bebe5f8"
+                                    .to_string();
+                        }
+
+                        Images {
+                            small: small_image,
+                            med: medium_image,
+                            large: large_image,
+                        }
+                    },
+                };
+
+                song_vec.push(song_item.clone());
+            }
+
+            // if let Some(ref song) = sawng {
+            //     let index = app_states.song_index.read().clone() as usize;
+            //
+            //     if index < song_vec.len() {
+            //         song_vec[index] = song.clone();
+            //     } else {
+            //         song_vec.push(song.clone());
+            //     }
+            // }
         }
     }
 }

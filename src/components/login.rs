@@ -10,10 +10,11 @@ const CLIENT_ID: &str = "432051cfd6a446d9b3adfeea29af2748";
 
 #[component]
 pub fn Login() -> Element {
-    let mut app_states = use_context::<AppStates>();
+    let app_states = use_context::<AppStates>();
+    let address = "127.0.0.1";
     let port = env!("PORT");
     let client_secret = env!("CLIENT_SECRET");
-    let redirect_uri = format!("http://127.0.0.1:{}/callback", port);
+    let redirect_uri = format!("http://{}:{}/callback", address, port);
     let scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state";
     
     let mut auth_url = Url::parse("https://accounts.spotify.com/authorize").unwrap();
@@ -27,7 +28,6 @@ pub fn Login() -> Element {
     let access_code = app_states.access_code.read().clone();
     let access_token = app_states.access_token.read().clone();
     
-    // Use use_effect to handle the token exchange
     use_effect(use_reactive!(|access_code, access_token| {
         if let (Some(code), None) = (access_code.as_ref(), access_token.as_ref()) {
             let code = code.clone();
@@ -36,13 +36,11 @@ pub fn Login() -> Element {
             let mut app_states = app_states.clone();
             
             spawn(async move {
-                // Create form data
                 let mut form_data = HashMap::new();
                 form_data.insert("grant_type", "authorization_code");
                 form_data.insert("code", &code);
                 form_data.insert("redirect_uri", &redirect_uri);
                 
-                // Create basic auth header
                 let credentials = format!("{}:{}", CLIENT_ID, client_secret);
                 let encoded_credentials = base64::encode(credentials);
                 let auth_header = format!("Basic {}", encoded_credentials);

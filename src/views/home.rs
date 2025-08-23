@@ -12,8 +12,8 @@ pub fn Home() -> Element {
             Login {}
         },
         Some(_) => rsx! {
-            SongDisplay {}
             Controls {}
+            SongDisplay {}
         },
     }
 }
