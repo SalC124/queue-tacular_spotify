@@ -189,19 +189,18 @@ pub async fn get_current_playback() -> Option<Song> {
                     }
                 },
             });
-            if let Some(ref song) = sawng {
-                let index = app_states.song_index.read().clone() as usize;
-                let mut song_vec = app_states.song_vector.write();
+            let index = app_states.song_index.read().clone() as usize;
+            let mut song_vec = app_states.song_vector.write();
 
-                if index < song_vec.len() {
-                    song_vec[index] = song.clone();
-                } else {
-                    song_vec.push(song.clone());
-                }
-                // app_states
-                //     .song_vector
-                //     .insert(app_states.song_index.read().clone() as usize, song.clone());
+            if index < song_vec.len() {
+                song_vec[index] = sawng.clone();
+            } else {
+                song_vec.push(sawng.clone());
             }
+            // app_states
+            //     .song_vector
+            //     .insert(app_states.song_index.read().clone() as usize, song.clone());
+
             sawng
         }
     }
@@ -297,6 +296,7 @@ pub async fn get_queue() -> () {
 
     let access_token = app_states.access_token.read().clone();
     let mut song_vec = app_states.song_vector.write();
+    let current_index = app_states.song_index.read().clone() as usize;
 
     match access_token {
         None => (),
@@ -316,11 +316,10 @@ pub async fn get_queue() -> () {
             let queue_array: Vec<Value> =
                 queue_array["queue"].as_array().unwrap_or(&vec![]).to_vec();
 
-            let index_len = song_vec.len() as i32;
-
             for (i, item) in queue_array.iter().enumerate() {
+                let target_index = current_index + 1 + i;
                 let song_item = Song {
-                    index: index_len + i as i32,
+                    index: target_index as i32,
                     id: {
                         let id = item["id"].to_string();
                         id[1..id.len() - 1].to_string()
@@ -394,7 +393,10 @@ pub async fn get_queue() -> () {
                     },
                 };
 
-                song_vec.push(song_item.clone());
+                if song_vec.len() <= song_item.index as usize {
+                    song_vec.resize(target_index + 1, None);
+                }
+                song_vec[target_index] = Some(song_item.clone());
             }
 
             // if let Some(ref song) = sawng {

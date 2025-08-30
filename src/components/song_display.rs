@@ -12,26 +12,30 @@ pub fn SongDisplay() -> Element {
 
     match song_vec.len().cmp(&0) {
         Ordering::Greater => {
-            let song_index = app_states.song_index.read().clone();
+            let song_index = *app_states.song_index.read();
             let current_song = &song_vec[song_index as usize];
 
             return rsx! {
                 div { id: "queue",
-                    for song_item in song_vec.clone() {
+                    for song_item in song_vec.clone().into_iter().flatten() {
                         div {
                             key: "{song_item.index}",
                             style: r#"
-                                display: inline-block;
-                                "#,
+                                background-color: #444;
+                                color: white;
+                                padding: 12px 24px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                            "#,
                             img { src: "{song_item.images.small}" }
                             p {
-
                                 style: if song_index == song_item.index {
                                     r#"
                                         color: red;
                                     "#
                                 },
-                                "{song_item.index}" }
+                                "{song_item.index} | {song_item.name}"
+                            }
                         }
                     }
                 }

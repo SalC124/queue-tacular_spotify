@@ -20,7 +20,7 @@ pub struct AppStates {
     access_code: Signal<Option<String>>,
     access_token: Signal<Option<String>>,
     song_index: Signal<i32>,
-    song_vector: Signal<Vec<Song>>,
+    song_vector: Signal<Vec<Option<Song>>>,
     reqwest_client: Signal<reqwest::Client>,
 }
 
